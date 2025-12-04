@@ -1,7 +1,7 @@
 // src/components/dashboard/MapPanel.tsx
 "use client";
 
-import { Box } from "@mui/material";
+import { Avatar, Box } from "@mui/material";
 import {
   MapContainer,
   TileLayer,
@@ -19,7 +19,9 @@ import { useTracking } from "../../context/TrackingContext";
 import { useEffect } from "react";
 
 const robotIcon = L.divIcon({
-  html: renderToString(<PestControlIcon style={{ fontSize: 42 }} />),
+  html: renderToString(
+    <PestControlIcon style={{ fontSize: 42, color: "black" }} />
+  ),
   className: "mui-leaflet-marker",
   iconSize: [30, 30],
   iconAnchor: [15, 30],
@@ -27,7 +29,7 @@ const robotIcon = L.divIcon({
 
 const robotSelectedIcon = L.divIcon({
   html: renderToString(
-    <PestControlIcon style={{ fontSize: 42, color: "#2e7d32" }} />
+    <PestControlIcon style={{ fontSize: 42, color: "orange" }} />
   ),
   className: "mui-leaflet-marker",
   iconSize: [30, 30],
@@ -35,14 +37,14 @@ const robotSelectedIcon = L.divIcon({
 });
 
 const baseIcon = L.divIcon({
-  html: renderToString(<HomeIcon style={{ fontSize: 28 }} />),
+  html: renderToString(<HomeIcon style={{ fontSize: 28, color: "green" }} />),
   className: "mui-leaflet-marker",
   iconSize: [28, 28],
   iconAnchor: [14, 28],
 });
 
 const targetIcon = L.divIcon({
-  html: renderToString(<FlagIcon style={{ fontSize: 28 }} />),
+  html: renderToString(<FlagIcon style={{ fontSize: 28, color: "red" }} />),
   className: "mui-leaflet-marker",
   iconSize: [28, 28],
   iconAnchor: [14, 28],

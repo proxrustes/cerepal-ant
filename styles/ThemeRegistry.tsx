@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { getTheme } from "./theme";
+import theme from "./theme";
 
 type ColorModeContextType = {
   mode: PaletteMode;
@@ -58,8 +58,6 @@ export default function ThemeRegistry({
     }),
     []
   );
-
-  const theme = useMemo(() => getTheme(mode), [mode]);
 
   return (
     <ColorModeContext.Provider value={value}>
