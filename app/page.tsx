@@ -1,66 +1,87 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
 
-export default function Home() {
+import { Box, Grid } from "@mui/material";
+import { CoordinateBar } from "@/components/dashboard/CoordinateBar";
+import { MapPanel } from "@/components/dashboard/MapPanel";
+import { CameraPanel } from "@/components/dashboard/CameraPanel";
+import { TelemetryCard } from "@/components/dashboard/TelemetryCard";
+import { ControlButtonsBar } from "@/components/dashboard/ControlButtonsBar";
+import { MOCK_TELEMETRY } from "@/mock/telemetry";
+import SpeedIcon from "@mui/icons-material/Speed";
+import BatteryChargingFullIcon from "@mui/icons-material/BatteryChargingFull";
+import NavigationIcon from "@mui/icons-material/Navigation";
+import HeightIcon from "@mui/icons-material/Height";
+
+export default function DashboardPage() {
+  const t = MOCK_TELEMETRY;
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <Box
+      sx={{
+        minHeight: "100vh",
+        bgcolor: "background.default",
+        color: "text.primary",
+        p: { xs: 2, md: 3 },
+      }}
+    >
+      <CoordinateBar coords={t.coords} />
+
+      <Grid container spacing={3}>
+        {/* Map */}
+        <Grid size={8}>
+          <MapPanel />
+        </Grid>
+
+        {/* Right column: camera + telemetry */}
+        <Grid size={4}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 2.5,
+              height: "100%",
+            }}
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <CameraPanel />
+
+            <Grid container spacing={2}>
+              <Grid size={6}>
+                <TelemetryCard
+                  icon={<SpeedIcon />}
+                  value={t.speedKmh.toString()}
+                  unit="км/год"
+                  label="швидкість"
+                />
+              </Grid>
+              <Grid size={6}>
+                <TelemetryCard
+                  icon={<BatteryChargingFullIcon />}
+                  value={t.battery.toString()}
+                  unit="%"
+                  label="заряд"
+                />
+              </Grid>
+              <Grid size={6}>
+                <TelemetryCard
+                  icon={<NavigationIcon />}
+                  value={t.heading}
+                  label="напрям"
+                />
+              </Grid>
+              <Grid size={6}>
+                <TelemetryCard
+                  icon={<HeightIcon />}
+                  value={t.altitude.toString()}
+                  unit="м"
+                  label="висота"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </Grid>
+      </Grid>
+
+      <ControlButtonsBar />
+    </Box>
   );
 }
