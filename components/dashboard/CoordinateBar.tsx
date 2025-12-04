@@ -14,7 +14,7 @@ export function CoordinateBar({ coords }: Props) {
         px: 4,
         py: 2,
         mb: 3,
-        borderColor: "primary.main",
+        borderColor: "secondary.main",
         borderWidth: 2,
         borderStyle: "solid",
         display: "inline-block",

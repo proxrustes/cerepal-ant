@@ -84,7 +84,7 @@ export function RobotSelector() {
     <Box
       sx={{
         mb: 2,
-        borderColor: "primary.main",
+        borderColor: "secondary.main",
         borderWidth: 2,
         borderStyle: "solid",
         borderRadius: 1,

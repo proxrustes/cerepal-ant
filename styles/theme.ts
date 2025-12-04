@@ -20,19 +20,7 @@ const theme = createTheme({
       secondary: "#9ca3af", // slate-400
     },
   },
-  shape: {
-    borderRadius: 12,
-  },
-  typography: {
-    fontFamily: [
-      "Inter",
-      "system-ui",
-      "-apple-system",
-      "BlinkMacSystemFont",
-      '"Segoe UI"',
-      "sans-serif",
-    ].join(","),
-  },
+
   components: {
     MuiPaper: {
       styleOverrides: {
@@ -50,13 +38,6 @@ const theme = createTheme({
               backgroundColor: "rgba(148, 163, 184, 0.24)",
             },
           },
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 999,
         },
       },
     },

@@ -41,7 +41,7 @@ export function TargetPanel() {
         px: 3,
         py: 2,
         mb: 3,
-        borderColor: "primary.main",
+        borderColor: "secondary.main",
         borderWidth: 2,
         borderStyle: "solid",
       }}

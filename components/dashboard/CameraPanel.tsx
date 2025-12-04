@@ -7,7 +7,7 @@ export function CameraPanel() {
     <Box
       sx={{
         flex: 1,
-        borderColor: "primary.main",
+        borderColor: "secondary.main",
         borderWidth: 2,
         borderStyle: "solid",
         borderRadius: 1,

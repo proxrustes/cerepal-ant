@@ -108,7 +108,7 @@ export function MapPanel() {
     <Box
       sx={{
         bgcolor: "background.paper",
-        borderColor: "primary.main",
+        borderColor: "secondary.main",
         borderWidth: 2,
         borderStyle: "solid",
         borderRadius: 1,
