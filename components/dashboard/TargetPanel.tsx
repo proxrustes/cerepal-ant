@@ -1,4 +1,3 @@
-// src/components/dashboard/TargetPanel.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,14 +6,20 @@ import RoomIcon from "@mui/icons-material/Room";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { useTracking } from "../../context/TrackingContext";
 
+import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
+
 export function TargetPanel() {
-  const { target, beginTargetSelection, isPickingTarget, setTargetCoords } =
-    useTracking();
+  const {
+    target,
+    beginTargetSelection,
+    isPickingTarget,
+    setTargetCoords,
+    focusOnTarget,
+  } = useTracking();
 
   const [latInput, setLatInput] = useState(target.lat.toFixed(6));
   const [lonInput, setLonInput] = useState(target.lon.toFixed(6));
 
-  // если цель изменилась (например, по клику на карте) — обновляем инпуты
   useEffect(() => {
     setLatInput(target.lat.toFixed(6));
     setLonInput(target.lon.toFixed(6));
@@ -24,7 +29,6 @@ export function TargetPanel() {
     const lat = parseFloat(latInput.replace(",", "."));
     const lon = parseFloat(lonInput.replace(",", "."));
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-      // тут можно повесить валидацию/тост, пока просто ничего не делаем
       return;
     }
     setTargetCoords({ lat, lon });
@@ -43,59 +47,54 @@ export function TargetPanel() {
       }}
     >
       <Stack spacing={2}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <RoomIcon />
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Ціль
-          </Typography>
-        </Stack>
-
-        <Typography variant="body2" sx={{ opacity: 0.8 }}>
-          Поточні координати:&nbsp;
-          <strong>
-            {target.lat.toFixed(5)}, {target.lon.toFixed(5)}
-          </strong>
-        </Typography>
-
         <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          alignItems={{ xs: "stretch", sm: "flex-end" }}
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          justifyContent={"space-between"}
         >
-          <TextField
-            label="Широта (lat)"
-            size="small"
-            value={latInput}
-            onChange={(e) => setLatInput(e.target.value)}
-            fullWidth
-          />
-          <TextField
-            label="Довгота (lon)"
-            size="small"
-            value={lonInput}
-            onChange={(e) => setLonInput(e.target.value)}
-            fullWidth
-          />
-          <Button variant="outlined" onClick={applyManual}>
-            Задать цель вручную
-          </Button>
-        </Stack>
-
-        <Stack direction="row" spacing={2}>
-          <Button
-            variant="contained"
-            startIcon={<MyLocationIcon />}
-            color={isPickingTarget ? "warning" : "primary"}
-            onClick={beginTargetSelection}
-          >
-            Задать цель на карте
-          </Button>
-
-          {isPickingTarget && (
-            <Typography variant="caption" sx={{ opacity: 0.8 }}>
-              Кликни по карте, чтобы выбрать новую точку.
+          <Stack direction={"row"} alignItems={"center"} spacing={1}>
+            <RoomIcon />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Ziel: {target.lat.toFixed(5)}, {target.lon.toFixed(5)}
             </Typography>
-          )}
+            <Button
+              variant="outlined"
+              startIcon={<CenterFocusStrongIcon />}
+              onClick={focusOnTarget}
+            >
+              Центрувати на цілі
+            </Button>
+          </Stack>
+
+          <Stack direction={"row"} gap={2}>
+            <TextField
+              label="Широта (lat)"
+              size="small"
+              value={latInput}
+              onChange={(e) => setLatInput(e.target.value)}
+            />
+            <TextField
+              label="Довгота (lon)"
+              size="small"
+              value={lonInput}
+              onChange={(e) => setLonInput(e.target.value)}
+            />
+          </Stack>
+          <Stack direction={"row"} alignItems={"center"} spacing={1}>
+            <Button variant="outlined" onClick={applyManual}>
+              Задать координаты вручную
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<MyLocationIcon />}
+              color={isPickingTarget ? "warning" : "primary"}
+              onClick={beginTargetSelection}
+              sx={{ width: 240 }}
+            >
+              {isPickingTarget ? " Кликни по карте" : "Задать цель на карте"}
+            </Button>
+          </Stack>
         </Stack>
       </Stack>
     </Box>

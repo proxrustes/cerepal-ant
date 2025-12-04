@@ -9,11 +9,12 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  IconButton,
 } from "@mui/material";
 import AndroidIcon from "@mui/icons-material/Android";
-import GroupsIcon from "@mui/icons-material/Groups";
 import DirectionsRunIcon from "@mui/icons-material/DirectionsRun";
 import BatteryChargingFullIcon from "@mui/icons-material/BatteryChargingFull";
+import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import { Robot, useTracking } from "../../context/TrackingContext";
 
 function taskLabel(mode: "idle" | "toBase" | "toTarget"): string {
@@ -28,7 +29,6 @@ function taskLabel(mode: "idle" | "toBase" | "toTarget"): string {
   }
 }
 
-// азимут → направление
 function bearingDeg(
   from: { lat: number; lon: number },
   to: { lat: number; lon: number }
@@ -67,10 +67,17 @@ function directionLabel(
 }
 
 export function RobotSelector() {
-  const { robots, selected, setSelected, base, target } = useTracking();
+  const {
+    robots,
+    base,
+    target,
+    selectedRobotIds,
+    toggleRobotSelection,
+    focusOnRobot,
+  } = useTracking();
 
-  const handleSelect = (value: string) => {
-    setSelected(value as any); // "all" | robotId
+  const handleRowClick = (id: string) => {
+    toggleRobotSelection(id);
   };
 
   return (
@@ -84,10 +91,6 @@ export function RobotSelector() {
         p: 1.5,
       }}
     >
-      <Typography variant="subtitle2" sx={{ opacity: 0.8, mb: 1 }}>
-        Roboter
-      </Typography>
-
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -97,34 +100,12 @@ export function RobotSelector() {
             <TableCell sx={{ fontWeight: 600 }}>Richtung</TableCell>
             <TableCell sx={{ fontWeight: 600 }}>Akkustand</TableCell>
             <TableCell sx={{ fontWeight: 600 }}>Aufgabe</TableCell>
+            <TableCell sx={{ fontWeight: 600 }} align="center">
+              Zentrieren
+            </TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {/* строка "все роботы" */}
-          <TableRow
-            hover
-            selected={selected === "all"}
-            onClick={() => handleSelect("all")}
-            sx={{ cursor: "pointer" }}
-          >
-            <TableCell>
-              <Box display="flex" alignItems="center" gap={1}>
-                <GroupsIcon fontSize="small" />
-                <Typography variant="body2">Alle Roboter</Typography>
-              </Box>
-            </TableCell>
-            <TableCell>–</TableCell>
-            <TableCell>–</TableCell>
-            <TableCell>–</TableCell>
-            <TableCell>–</TableCell>
-            <TableCell>
-              <Typography variant="caption">
-                Befehl gilt für alle ({robots.length})
-              </Typography>
-            </TableCell>
-          </TableRow>
-
-          {/* отдельные роботы */}
           {robots.map((r) => {
             const lat = r.position.lat.toFixed(4);
             const lon = r.position.lon.toFixed(4);
@@ -137,13 +118,14 @@ export function RobotSelector() {
                 : battery > 30
                 ? "warning.main"
                 : "error.main";
+            const isSelected = selectedRobotIds.includes(r.id);
 
             return (
               <TableRow
                 key={r.id}
                 hover
-                selected={selected === r.id}
-                onClick={() => handleSelect(r.id)}
+                selected={isSelected}
+                onClick={() => handleRowClick(r.id)}
                 sx={{ cursor: "pointer" }}
               >
                 <TableCell>
@@ -186,6 +168,18 @@ export function RobotSelector() {
 
                 <TableCell>
                   <Typography variant="caption">{taskLabel(r.mode)}</Typography>
+                </TableCell>
+
+                <TableCell align="center">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      focusOnRobot(r.id);
+                    }}
+                  >
+                    <CenterFocusStrongIcon fontSize="small" />
+                  </IconButton>
                 </TableCell>
               </TableRow>
             );

@@ -1,24 +1,25 @@
+// src/components/dashboard/MapPanel.tsx
 "use client";
 
-import { Box, Stack } from "@mui/material";
+import { Box } from "@mui/material";
 import {
   MapContainer,
   TileLayer,
   Marker,
   Popup,
   useMapEvents,
+  useMap,
 } from "react-leaflet";
 import L from "leaflet";
 import HomeIcon from "@mui/icons-material/Home";
 import FlagIcon from "@mui/icons-material/Flag";
+import PestControlIcon from "@mui/icons-material/PestControl";
 import { renderToString } from "react-dom/server";
 import { useTracking } from "../../context/TrackingContext";
-import PestControlIcon from "@mui/icons-material/PestControl";
+import { useEffect } from "react";
 
 const robotIcon = L.divIcon({
-  html: renderToString(
-    <PestControlIcon style={{ fontSize: 42, color: "#2A3C24" }} />
-  ),
+  html: renderToString(<PestControlIcon style={{ fontSize: 42 }} />),
   className: "mui-leaflet-marker",
   iconSize: [30, 30],
   iconAnchor: [15, 30],
@@ -26,7 +27,7 @@ const robotIcon = L.divIcon({
 
 const robotSelectedIcon = L.divIcon({
   html: renderToString(
-    <PestControlIcon style={{ fontSize: 42, color: "#339989" }} />
+    <PestControlIcon style={{ fontSize: 42, color: "#2e7d32" }} />
   ),
   className: "mui-leaflet-marker",
   iconSize: [30, 30],
@@ -62,66 +63,103 @@ function TargetClickHandler({
   });
   return null;
 }
+
+function MapFocusController() {
+  const { mapFocus, robots, target } = useTracking();
+  const map = useMap();
+
+  useEffect(() => {
+    if (!mapFocus) return;
+
+    let lat: number | null = null;
+    let lon: number | null = null;
+
+    if (mapFocus.type === "target") {
+      lat = target.lat;
+      lon = target.lon;
+    } else {
+      const r = robots.find((x) => x.id === mapFocus.id);
+      if (!r) return;
+      lat = r.position.lat;
+      lon = r.position.lon;
+    }
+
+    map.setView([lat, lon], map.getZoom(), { animate: true });
+  }, [mapFocus, robots, target, map]);
+
+  return null;
+}
+
 export function MapPanel() {
-  const { robots, base, target, selected, isPickingTarget, setTargetCoords } =
-    useTracking();
+  const {
+    robots,
+    base,
+    target,
+    selectedRobotIds,
+    isPickingTarget,
+    setTargetCoords,
+  } = useTracking();
+
   const center: [number, number] = [base.lat, base.lon];
 
   return (
-    <Stack>
-      <Box
-        sx={{
-          bgcolor: "background.paper",
-          borderColor: "primary.main",
-          borderWidth: 2,
-          borderStyle: "solid",
-          borderRadius: 1,
-          p: 1.5,
-          height: { xs: 320, md: 520 },
-          overflow: "hidden",
-        }}
+    <Box
+      sx={{
+        bgcolor: "background.paper",
+        borderColor: "primary.main",
+        borderWidth: 2,
+        borderStyle: "solid",
+        borderRadius: 1,
+        p: 1.5,
+        height: { xs: 320, md: 520 },
+        overflow: "hidden",
+      }}
+    >
+      <MapContainer
+        center={center}
+        zoom={11}
+        style={{ width: "100%", height: "100%", borderRadius: 12 }}
+        scrollWheelZoom
       >
-        <MapContainer
-          center={center}
-          zoom={11}
-          style={{ width: "100%", height: "100%", borderRadius: 12 }}
-          scrollWheelZoom
-        >
-          <TileLayer
-            attribution="&copy; OpenStreetMap contributors"
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <TargetClickHandler
-            enabled={isPickingTarget}
-            onSelect={(lat, lon) => setTargetCoords({ lat, lon })}
-          />
-          {/* база */}
-          <Marker position={[base.lat, base.lon]} icon={baseIcon}>
-            <Popup>База</Popup>
-          </Marker>
+        <TileLayer
+          attribution="&copy; OpenStreetMap contributors"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-          {/* цель */}
-          <Marker position={[target.lat, target.lon]} icon={targetIcon}>
-            <Popup>Ціль</Popup>
-          </Marker>
+        <MapFocusController />
 
-          {/* роботы */}
-          {robots.map((r) => {
-            const isSelected = selected === "all" || selected === r.id;
-            return (
-              <Marker
-                key={r.id}
-                position={[r.position.lat, r.position.lon]}
-                icon={isSelected ? robotSelectedIcon : robotIcon}
-              >
-                <Popup>
-                  {r.name} ({r.mode})
-                </Popup>
-              </Marker>
-            );
-          })}
-        </MapContainer>
-      </Box>
-    </Stack>
+        <TargetClickHandler
+          enabled={isPickingTarget}
+          onSelect={(lat, lon) => setTargetCoords({ lat, lon })}
+        />
+
+        <Marker position={[base.lat, base.lon]} icon={baseIcon}>
+          <Popup>Basis</Popup>
+        </Marker>
+
+        <Marker position={[target.lat, target.lon]} icon={targetIcon}>
+          <Popup>
+            Ziel
+            <br />
+            {target.lat.toFixed(5)}, {target.lon.toFixed(5)}
+          </Popup>
+        </Marker>
+
+        {robots.map((r) => {
+          const isSelected = selectedRobotIds.includes(r.id);
+          return (
+            <Marker
+              key={r.id}
+              position={[r.position.lat, r.position.lon]}
+              icon={isSelected ? robotSelectedIcon : robotIcon}
+            >
+              <Popup>
+                {r.name} ({r.mode})
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
+    </Box>
   );
 }

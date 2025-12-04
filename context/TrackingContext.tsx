@@ -1,4 +1,4 @@
-// src/tracking/TrackingContext.tsx
+// src/context/TrackingContext.tsx
 "use client";
 
 import {
@@ -21,19 +21,26 @@ export type Robot = {
   battery: number;
 };
 
-type SelectedRobots = "all" | string;
+type MapFocus = { type: "robot"; id: string } | { type: "target" } | null;
 
 type TrackingContextValue = {
   robots: Robot[];
   base: LatLng;
   target: LatLng;
-  selected: SelectedRobots;
-  setSelected: (sel: SelectedRobots) => void;
+
+  selectedRobotIds: string[];
+  toggleRobotSelection: (id: string) => void;
+
   commandToBase: () => void;
   commandToTarget: () => void;
+
   isPickingTarget: boolean;
   beginTargetSelection: () => void;
   setTargetCoords: (coords: LatLng) => void;
+
+  mapFocus: MapFocus;
+  focusOnRobot: (id: string) => void;
+  focusOnTarget: () => void;
 };
 
 const TrackingContext = createContext<TrackingContextValue | undefined>(
@@ -63,7 +70,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     {
       id: "r1",
       name: "Ant-1",
-      position: randomAround(BASE_CENTER, 0.05),
+      position: randomAround(BASE_CENTER, 0.01),
       mode: "idle",
       battery: 60 + Math.round(Math.random() * 40),
     },
@@ -76,24 +83,23 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     },
   ]);
 
-  const [selected, setSelected] = useState<SelectedRobots>("all");
+  const [selectedRobotIds, setSelectedRobotIds] = useState<string[]>([]);
+  const [mapFocus, setMapFocus] = useState<MapFocus>(null);
 
+  // движение роботов + разряд батареи
   useEffect(() => {
     const STEP = 0.0005;
-
     const id = window.setInterval(() => {
       setRobots((prev) =>
         prev.map((r) => {
           const dest =
             r.mode === "toBase" ? base : r.mode === "toTarget" ? target : null;
-
           if (!dest) return r;
 
           const dLat = dest.lat - r.position.lat;
           const dLon = dest.lon - r.position.lon;
           const dist = Math.sqrt(dLat * dLat + dLon * dLon);
-
-          const drain = 0.1; // % за тик
+          const drain = 0.1;
           const battery = Math.max(0, r.battery - drain);
 
           if (dist < STEP) {
@@ -115,18 +121,26 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(id);
   }, [base, target]);
 
+  const toggleRobotSelection = (id: string) => {
+    setSelectedRobotIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   const commandToBase = () => {
+    if (selectedRobotIds.length === 0) return;
     setRobots((prev) =>
       prev.map((r) =>
-        selected === "all" || r.id === selected ? { ...r, mode: "toBase" } : r
+        selectedRobotIds.includes(r.id) ? { ...r, mode: "toBase" } : r
       )
     );
   };
 
   const commandToTarget = () => {
+    if (selectedRobotIds.length === 0) return;
     setRobots((prev) =>
       prev.map((r) =>
-        selected === "all" || r.id === selected ? { ...r, mode: "toTarget" } : r
+        selectedRobotIds.includes(r.id) ? { ...r, mode: "toTarget" } : r
       )
     );
   };
@@ -138,6 +152,15 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
   const setTargetCoords = (coords: LatLng) => {
     setTarget(coords);
     setIsPickingTarget(false);
+    setMapFocus({ type: "target" }); // сразу фокус на новую цель
+  };
+
+  const focusOnRobot = (id: string) => {
+    setMapFocus({ type: "robot", id });
+  };
+
+  const focusOnTarget = () => {
+    setMapFocus({ type: "target" });
   };
 
   const value = useMemo(
@@ -145,15 +168,18 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
       robots,
       base,
       target,
-      selected,
-      setSelected,
+      selectedRobotIds,
+      toggleRobotSelection,
       commandToBase,
       commandToTarget,
       isPickingTarget,
       beginTargetSelection,
       setTargetCoords,
+      mapFocus,
+      focusOnRobot,
+      focusOnTarget,
     }),
-    [robots, base, target, selected]
+    [robots, base, target, selectedRobotIds, isPickingTarget, mapFocus]
   );
 
   return (
