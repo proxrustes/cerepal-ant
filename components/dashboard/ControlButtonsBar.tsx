@@ -1,54 +1,39 @@
 "use client";
 
-import { Box, Button } from "@mui/material";
+import { Stack, Button } from "@mui/material";
+import { useTracking } from "../../context/TrackingContext";
 
 export function ControlButtonsBar() {
+  const { commandToBase, commandToTarget } = useTracking();
   return (
-    <Box
-      sx={{
-        mt: 3,
-        display: "grid",
-        gap: 2,
-        gridTemplateColumns: { xs: "1fr", md: "1.4fr 1fr 1.4fr" },
-      }}
-    >
+    <Stack sx={{ gap: 2 }} direction="row" justifyContent="center">
       <Button
         variant="contained"
         color="success"
-        sx={{
-          py: 2,
-          fontSize: 18,
-          fontWeight: 700,
-          borderRadius: 2,
-        }}
+        onClick={commandToTarget}
+        fullWidth
+        sx={{ height: 80, fontSize: 28, fontWeight: 700 }}
       >
-        ЗАХОПЛЕННЯ ЦІЛІ
+        ZIEL ERFASSEN
       </Button>
       <Button
         variant="contained"
         color="warning"
-        sx={{
-          py: 2,
-          fontSize: 18,
-          fontWeight: 700,
-          borderRadius: 2,
-        }}
+        fullWidth
+        onClick={commandToBase}
+        sx={{ height: 80, fontSize: 28, fontWeight: 700 }}
       >
-        НА БАЗУ
+        ZUR BASIS
       </Button>
       <Button
-        variant="outlined"
+        variant="contained"
+        disabled
         color="error"
-        sx={{
-          py: 2,
-          fontSize: 18,
-          fontWeight: 700,
-          borderRadius: 2,
-          borderWidth: 2,
-        }}
+        fullWidth
+        sx={{ height: 80, fontSize: 28, fontWeight: 700 }}
       >
-        САМОЗНИЩЕННЯ
+        SELBSTZERSTÖRUNG
       </Button>
-    </Box>
+    </Stack>
   );
 }

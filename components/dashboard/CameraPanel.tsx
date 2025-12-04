@@ -7,6 +7,9 @@ export function CameraPanel() {
     <Box
       sx={{
         flex: 1,
+        borderColor: "primary.main",
+        borderWidth: 2,
+        borderStyle: "solid",
         borderRadius: 1,
         overflow: "hidden",
         position: "relative",
@@ -18,7 +21,7 @@ export function CameraPanel() {
           position: "absolute",
           inset: 0,
           background:
-            "url(https://images.pexels.com/photos/1202849/pexels-photo-1202849.jpeg?auto=compress&cs=tinysrgb&w=800) center/cover",
+            "url(https://i.pinimg.com/736x/6c/f0/85/6cf08577b87e238ca4ea29614c11c66c.jpg) center/cover",
           filter: "saturate(1.1)",
         }}
       />

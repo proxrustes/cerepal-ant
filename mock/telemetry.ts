@@ -1,5 +1,7 @@
 export type Telemetry = {
-  coords: string;
+  coordsText: string;
+  lat: number;
+  lon: number;
   speedKmh: number;
   battery: number;
   heading: string;
@@ -7,9 +9,11 @@ export type Telemetry = {
 };
 
 export const MOCK_TELEMETRY: Telemetry = {
-  coords: `49°27'04.1"N 39°17'24.7"E`,
+  coordsText: `49°27'04.1"N 39°17'24.7"E`,
+  lat: 49.451139,
+  lon: 39.290194,
   speedKmh: 30,
   battery: 30,
-  heading: "Північ",
+  heading: "NORD-OST",
   altitude: 172,
 };
