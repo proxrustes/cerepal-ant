@@ -5,6 +5,7 @@ import { useTracking } from "../../context/TrackingContext";
 import UndoIcon from "@mui/icons-material/Undo";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import WhatshotIcon from "@mui/icons-material/Whatshot";
+
 export function ControlButtonsBar() {
   const { commandToBase, commandToTarget } = useTracking();
   return (

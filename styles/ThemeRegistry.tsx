@@ -20,8 +20,6 @@ const ColorModeContext = createContext<ColorModeContextType>({
   toggleColorMode: () => {},
 });
 
-export const useColorMode = () => useContext(ColorModeContext);
-
 export default function ThemeRegistry({
   children,
 }: {

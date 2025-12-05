@@ -1,4 +1,3 @@
-// src/context/TrackingContext.tsx
 "use client";
 
 import {
@@ -10,8 +9,8 @@ import {
   ReactNode,
 } from "react";
 
-export type LatLng = { lat: number; lon: number };
-export type RobotMode = "idle" | "toBase" | "toTarget";
+type LatLng = { lat: number; lon: number };
+type RobotMode = "idle" | "toBase" | "toTarget";
 
 export type Robot = {
   id: string;
@@ -41,6 +40,7 @@ type TrackingContextValue = {
   mapFocus: MapFocus;
   focusOnRobot: (id: string) => void;
   focusOnTarget: () => void;
+  clearMapFocus: () => void;
 };
 
 const TrackingContext = createContext<TrackingContextValue | undefined>(
@@ -163,6 +163,10 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
     setMapFocus({ type: "target" });
   };
 
+  const clearMapFocus = () => {
+    setMapFocus(null);
+  };
+
   const value = useMemo(
     () => ({
       robots,
@@ -178,6 +182,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
       mapFocus,
       focusOnRobot,
       focusOnTarget,
+      clearMapFocus,
     }),
     [robots, base, target, selectedRobotIds, isPickingTarget, mapFocus]
   );

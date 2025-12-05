@@ -1,7 +1,6 @@
-// src/components/dashboard/MapPanel.tsx
 "use client";
 
-import { Avatar, Box } from "@mui/material";
+import { Box } from "@mui/material";
 import {
   MapContainer,
   TileLayer,
@@ -10,45 +9,11 @@ import {
   useMapEvents,
   useMap,
 } from "react-leaflet";
-import L from "leaflet";
-import HomeIcon from "@mui/icons-material/Home";
-import FlagIcon from "@mui/icons-material/Flag";
-import PestControlIcon from "@mui/icons-material/PestControl";
-import { renderToString } from "react-dom/server";
 import { useTracking } from "../../context/TrackingContext";
-import { useEffect } from "react";
-
-const robotIcon = L.divIcon({
-  html: renderToString(
-    <PestControlIcon style={{ fontSize: 42, color: "black" }} />
-  ),
-  className: "mui-leaflet-marker",
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-});
-
-const robotSelectedIcon = L.divIcon({
-  html: renderToString(
-    <PestControlIcon style={{ fontSize: 42, color: "orange" }} />
-  ),
-  className: "mui-leaflet-marker",
-  iconSize: [30, 30],
-  iconAnchor: [15, 30],
-});
-
-const baseIcon = L.divIcon({
-  html: renderToString(<HomeIcon style={{ fontSize: 28, color: "green" }} />),
-  className: "mui-leaflet-marker",
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
-});
-
-const targetIcon = L.divIcon({
-  html: renderToString(<FlagIcon style={{ fontSize: 28, color: "red" }} />),
-  className: "mui-leaflet-marker",
-  iconSize: [28, 28],
-  iconAnchor: [14, 28],
-});
+import { useEffect, useState } from "react";
+import { baseIcon, targetIcon, robotSelectedIcon, robotIcon } from "./icons";
+import { MapStyleKey, TILE_LAYERS } from "./styles";
+import { MapStyleControl } from "./MapStyleControl";
 
 function TargetClickHandler({
   enabled,
@@ -67,7 +32,7 @@ function TargetClickHandler({
 }
 
 function MapFocusController() {
-  const { mapFocus, robots, target } = useTracking();
+  const { mapFocus, robots, target, clearMapFocus } = useTracking();
   const map = useMap();
 
   useEffect(() => {
@@ -87,6 +52,7 @@ function MapFocusController() {
     }
 
     map.setView([lat, lon], map.getZoom(), { animate: true });
+    clearMapFocus();
   }, [mapFocus, robots, target, map]);
 
   return null;
@@ -101,8 +67,9 @@ export function MapPanel() {
     isPickingTarget,
     setTargetCoords,
   } = useTracking();
-
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>("cartoLight");
   const center: [number, number] = [base.lat, base.lon];
+  const layer = TILE_LAYERS[mapStyle];
 
   return (
     <Box
@@ -111,22 +78,19 @@ export function MapPanel() {
         borderColor: "secondary.main",
         borderWidth: 2,
         borderStyle: "solid",
-        borderRadius: 1,
         p: 1.5,
         height: { xs: 320, md: 520 },
         overflow: "hidden",
+        position: "relative",
       }}
     >
       <MapContainer
         center={center}
         zoom={11}
-        style={{ width: "100%", height: "100%", borderRadius: 12 }}
+        style={{ width: "100%", height: "100%" }}
         scrollWheelZoom
       >
-        <TileLayer
-          attribution="&copy; OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <TileLayer attribution={layer.attribution} url={layer.url} />
 
         <MapFocusController />
 
@@ -162,6 +126,16 @@ export function MapPanel() {
           );
         })}
       </MapContainer>
+      <Box
+        sx={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 1000,
+        }}
+      >
+        <MapStyleControl value={mapStyle} onChange={setMapStyle} />
+      </Box>
     </Box>
   );
 }

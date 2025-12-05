@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Box, Button, Stack, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Icon,
+  IconButton,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import RoomIcon from "@mui/icons-material/Room";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { useTracking } from "../../context/TrackingContext";
@@ -40,10 +48,8 @@ export function TargetPanel() {
         borderRadius: 1,
         px: 3,
         py: 2,
+        backgroundColor: "background.paper",
         mb: 3,
-        borderColor: "secondary.main",
-        borderWidth: 2,
-        borderStyle: "solid",
       }}
     >
       <Stack spacing={2}>
@@ -58,24 +64,20 @@ export function TargetPanel() {
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               Ziel: {target.lat.toFixed(5)}, {target.lon.toFixed(5)}
             </Typography>
-            <Button
-              variant="outlined"
-              startIcon={<CenterFocusStrongIcon />}
-              onClick={focusOnTarget}
-            >
-              Центрувати на цілі
-            </Button>
+            <IconButton onClick={focusOnTarget}>
+              <CenterFocusStrongIcon />
+            </IconButton>
           </Stack>
 
           <Stack direction={"row"} gap={2}>
             <TextField
-              label="Широта (lat)"
+              label="Latitude (lat)"
               size="small"
               value={latInput}
               onChange={(e) => setLatInput(e.target.value)}
             />
             <TextField
-              label="Довгота (lon)"
+              label="Longitude (lon)"
               size="small"
               value={lonInput}
               onChange={(e) => setLonInput(e.target.value)}
@@ -83,16 +85,18 @@ export function TargetPanel() {
           </Stack>
           <Stack direction={"row"} alignItems={"center"} spacing={1}>
             <Button variant="outlined" onClick={applyManual}>
-              Задать координаты вручную
+              Manuelle Eingabe
             </Button>
             <Button
               variant="contained"
               startIcon={<MyLocationIcon />}
               color={isPickingTarget ? "warning" : "primary"}
               onClick={beginTargetSelection}
-              sx={{ width: 240 }}
+              sx={{ width: 320 }}
             >
-              {isPickingTarget ? " Кликни по карте" : "Задать цель на карте"}
+              {isPickingTarget
+                ? " Klicken auf die Karte"
+                : "Setze Ziel auf der Karte"}
             </Button>
           </Stack>
         </Stack>

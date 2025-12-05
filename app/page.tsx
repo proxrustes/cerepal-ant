@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Grid, Stack } from "@mui/material";
-import { MapPanel } from "@/components/dashboard/MapPanel";
+import { MapPanel } from "@/components/map/MapPanel";
 import { CameraPanel } from "@/components/dashboard/CameraPanel";
 import { ControlButtonsBar } from "@/components/dashboard/ControlButtonsBar";
 import { RobotSelector } from "../components/dashboard/RobotSelector";

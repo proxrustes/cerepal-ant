@@ -1,23 +1,22 @@
-// src/theme.ts
 import { createTheme } from "@mui/material/styles";
 
 const theme = createTheme({
   palette: {
     mode: "dark",
     primary: {
-      main: "#86A5D9", // steel / blue
+      main: "#86A5D9",
     },
     secondary: {
       main: "#344966",
     },
     background: {
-      default: "#080B18", // slate-950
-      paper: "#080B18", // чтобы всё было ровно одного тона
+      default: "#080B18",
+      paper: "#161822",
     },
-    divider: "rgba(148, 163, 184, 0.35)", // slate-400
+    divider: "rgba(148, 163, 184, 0.35)",
     text: {
-      primary: "#e5e7eb", // slate-200
-      secondary: "#9ca3af", // slate-400
+      primary: "#e5e7eb",
+      secondary: "#9ca3af",
     },
   },
 
