@@ -53,13 +53,66 @@ export const useTracking = () => {
   return ctx;
 };
 
+// -----------------
+// Константы / утилиты
+// -----------------
+
 const BASE_CENTER: LatLng = { lat: 49.451139, lon: 39.290194 };
 const TARGET_POINT: LatLng = { lat: 49.47, lon: 39.33 };
+
+const STEP = 0.0005;
+const BATTERY_DRAIN_PER_TICK = 0.1;
 
 function randomAround(center: LatLng, delta = 0.01): LatLng {
   const rnd = () => (Math.random() * 2 - 1) * delta;
   return { lat: center.lat + rnd(), lon: center.lon + rnd() };
 }
+
+// один тик симуляции движения
+function simulateRobotsTick(
+  robots: Robot[],
+  base: LatLng,
+  target: LatLng
+): Robot[] {
+  return robots.map((r) => {
+    const dest =
+      r.mode === "toBase" ? base : r.mode === "toTarget" ? target : null;
+    if (!dest) return r;
+
+    const dLat = dest.lat - r.position.lat;
+    const dLon = dest.lon - r.position.lon;
+    const dist = Math.sqrt(dLat * dLat + dLon * dLon);
+    const battery = Math.max(0, r.battery - BATTERY_DRAIN_PER_TICK);
+
+    if (dist < STEP) {
+      return { ...r, position: dest, mode: "idle", battery };
+    }
+
+    return {
+      ...r,
+      position: {
+        lat: r.position.lat + (dLat / dist) * STEP,
+        lon: r.position.lon + (dLon / dist) * STEP,
+      },
+      battery,
+    };
+  });
+}
+
+// применение команды к выбранным роботам
+function applyCommandToRobots(
+  robots: Robot[],
+  selectedIds: string[],
+  mode: Exclude<RobotMode, "idle">
+): Robot[] {
+  if (selectedIds.length === 0) return robots;
+
+  return robots.map((r) => (selectedIds.includes(r.id) ? { ...r, mode } : r));
+}
+
+// -----------------
+// Провайдер
+// -----------------
 
 export function TrackingProvider({ children }: { children: ReactNode }) {
   const [base] = useState<LatLng>(BASE_CENTER);
@@ -86,36 +139,9 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
   const [selectedRobotIds, setSelectedRobotIds] = useState<string[]>([]);
   const [mapFocus, setMapFocus] = useState<MapFocus>(null);
 
-  // движение роботов + разряд батареи
   useEffect(() => {
-    const STEP = 0.0005;
     const id = window.setInterval(() => {
-      setRobots((prev) =>
-        prev.map((r) => {
-          const dest =
-            r.mode === "toBase" ? base : r.mode === "toTarget" ? target : null;
-          if (!dest) return r;
-
-          const dLat = dest.lat - r.position.lat;
-          const dLon = dest.lon - r.position.lon;
-          const dist = Math.sqrt(dLat * dLat + dLon * dLon);
-          const drain = 0.1;
-          const battery = Math.max(0, r.battery - drain);
-
-          if (dist < STEP) {
-            return { ...r, position: dest, mode: "idle", battery };
-          }
-
-          return {
-            ...r,
-            position: {
-              lat: r.position.lat + (dLat / dist) * STEP,
-              lon: r.position.lon + (dLon / dist) * STEP,
-            },
-            battery,
-          };
-        })
-      );
+      setRobots((prev) => simulateRobotsTick(prev, base, target));
     }, 200);
 
     return () => window.clearInterval(id);
@@ -128,21 +154,19 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
   };
 
   const commandToBase = () => {
-    if (selectedRobotIds.length === 0) return;
-    setRobots((prev) =>
-      prev.map((r) =>
-        selectedRobotIds.includes(r.id) ? { ...r, mode: "toBase" } : r
-      )
-    );
+    setRobots((prev) => applyCommandToRobots(prev, selectedRobotIds, "toBase"));
+    if (selectedRobotIds.length > 0) {
+      setSelectedRobotIds([]);
+    }
   };
 
   const commandToTarget = () => {
-    if (selectedRobotIds.length === 0) return;
     setRobots((prev) =>
-      prev.map((r) =>
-        selectedRobotIds.includes(r.id) ? { ...r, mode: "toTarget" } : r
-      )
+      applyCommandToRobots(prev, selectedRobotIds, "toTarget")
     );
+    if (selectedRobotIds.length > 0) {
+      setSelectedRobotIds([]);
+    }
   };
 
   const beginTargetSelection = () => {
@@ -152,7 +176,7 @@ export function TrackingProvider({ children }: { children: ReactNode }) {
   const setTargetCoords = (coords: LatLng) => {
     setTarget(coords);
     setIsPickingTarget(false);
-    setMapFocus({ type: "target" }); // сразу фокус на новую цель
+    setMapFocus({ type: "target" });
   };
 
   const focusOnRobot = (id: string) => {

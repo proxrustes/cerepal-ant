@@ -1,11 +1,18 @@
 "use client";
-
 import { Box, Grid, Stack } from "@mui/material";
-import { MapPanel } from "@/components/map/MapPanel";
 import { CameraPanel } from "@/components/dashboard/CameraPanel";
 import { ControlButtonsBar } from "@/components/dashboard/ControlButtonsBar";
 import { RobotSelector } from "../components/dashboard/RobotSelector";
 import { TargetPanel } from "../components/dashboard/TargetPanel";
+import dynamic from "next/dynamic";
+
+const MapPanel = dynamic(
+  () => import("@/components/map/MapPanel").then((m) => m.MapPanel),
+  {
+    ssr: false,
+    loading: () => <Box sx={{ height: 520 }} />, // можно воткнуть skeleton/loader
+  }
+);
 
 export default function DashboardPage() {
   return (
