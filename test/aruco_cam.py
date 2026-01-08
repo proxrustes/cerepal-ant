@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Простой демо-скрипт:
-- Захватывает видео с камеры
-- Детектит ArUco-маркеры
-- Немного сглаживает положение маркеров
-- (опционально) рисует 3D-оси, если есть калибровка камеры
+ArUco demo + Kalman filter (snappy) + hold при пропаже маркера.
+
+- Детект ArUco
+- 2D центр маркера фильтруется Kalman (x,y,vx,vy)
+- 3D tvec фильтруется Kalman (x,y,z,vx,vy,vz) если есть калибровка
+- rvec не фильтруем: используем последний видимый (ок для коротких пропаж)
+- Если маркер пропал на HOLD_SECONDS — рисуем предсказание (predict) и оси по last_rvec
 """
 
 from __future__ import annotations
@@ -19,24 +21,35 @@ import numpy as np
 
 # ====== НАСТРОЙКИ ПОД СЕБЯ ======
 
-# Имя словаря ArUco (подставь то, который у тебя реально сработал)
 ARUCO_DICT_NAME = "DICT_4X4_1000"
-
-# Номер камеры (0 — встроенная / первая USB)
 CAMERA_ID = 0
 
-# Физический размер маркера в метрах (если нужен pose)
-MARKER_LENGTH_METERS = 0.04  # 4 см
+# Физический размер маркера в метрах (для pose)
+MARKER_LENGTH_METERS = 0.085
 
-# Пути к файлам калибровки (если пока нет — файлы можно не создавать)
 CAMERA_MATRIX_PATH = Path("camera_matrix.npy")
 DIST_COEFFS_PATH = Path("dist_coeffs.npy")
 
-# Коэффициент сглаживания (0.1 — плавно, 0.5 — быстро реагирует)
+# EMA сглаживание
 SMOOTHING_ALPHA = 0.3
+
+# "Не терять маркер" если он пропал на короткое время
+HOLD_SECONDS = 2.0       # держать последнюю позу/центр
+FORGET_SECONDS = 5.0     # потом полностью забыть маркер
 
 
 # ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
+
+def draw_axes(frame, camera_matrix, dist_coeffs, rvec, tvec, axis_len: float) -> None:
+    rvec = np.asarray(rvec).reshape(3, 1)
+    tvec = np.asarray(tvec).reshape(3, 1)
+
+    if hasattr(cv2, "drawFrameAxes"):
+        cv2.drawFrameAxes(frame, camera_matrix, dist_coeffs, rvec, tvec, axis_len)
+    else:
+        # в этой сборке не умеем рисовать оси
+        pass
+
 
 def load_camera_params() -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
     """Пытаемся загрузить параметры камеры из .npy.
@@ -49,7 +62,7 @@ def load_camera_params() -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
     return None, None
 
 
-def create_aruco_detector(dict_name: str) -> Tuple[cv2.aruco.ArucoDetector, int]:
+def create_aruco_detector(dict_name: str):
     """Создаём детектор ArUco с адекватными параметрами."""
     aruco = cv2.aruco
 
@@ -85,27 +98,40 @@ def ema(prev: Optional[np.ndarray], new: np.ndarray, alpha: float) -> np.ndarray
 # ====== ОСНОВНОЙ ЦИКЛ ======
 
 def main() -> None:
-    # 1. Загружаем калибровку камеры (если есть)
+    # 1) Загружаем калибровку камеры (если есть)
     camera_matrix, dist_coeffs = load_camera_params()
     if camera_matrix is None or dist_coeffs is None:
         print("⚠️  Калибровка не найдена: pose будет пропущен, только 2D-рамки.")
     else:
         print("✅ Загружены параметры камеры, pose/оси будут рисоваться.")
 
-    # 2. Создаём детектор
+    # 2) Создаём детектор
     detector, dict_id = create_aruco_detector(ARUCO_DICT_NAME)
     print(f"Используем словарь ArUco: {ARUCO_DICT_NAME} (id={dict_id})")
 
-    # 3. Открываем камеру
+    # 3) Открываем камеру
     cap = cv2.VideoCapture(CAMERA_ID)
     if not cap.isOpened():
         raise RuntimeError(f"Не удалось открыть камеру с id={CAMERA_ID}")
 
-    # Словарь для сглаживания центров и поз
+    # Пытаемся узнать FPS (часто возвращает 0/NaN) — тогда считаем 30
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    if not fps or fps != fps:
+        fps = 30.0
+
+    HOLD_FRAMES = int(round(HOLD_SECONDS * fps))
+    FORGET_FRAMES = int(round(FORGET_SECONDS * fps))
+
+    # Словари для сглаживания и "памяти"
     smoothed_centers: Dict[int, Optional[np.ndarray]] = collections.defaultdict(lambda: None)
     smoothed_tvecs: Dict[int, Optional[np.ndarray]] = collections.defaultdict(lambda: None)
 
+    last_seen_frame: Dict[int, int] = {}
+    last_rvecs: Dict[int, Optional[np.ndarray]] = collections.defaultdict(lambda: None)
+    last_tvecs: Dict[int, Optional[np.ndarray]] = collections.defaultdict(lambda: None)
+
     aruco = cv2.aruco
+    frame_idx = 0
 
     print("Нажми 'q' в окне видео, чтобы выйти.")
 
@@ -115,23 +141,30 @@ def main() -> None:
             print("⚠️  Кадр не получен, выходим.")
             break
 
+        frame_idx += 1
+
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # 4. Детектим маркеры
+        # 4) Детектим маркеры
         corners, ids, rejected = detector.detectMarkers(gray)
+
+        seen_ids = set()
 
         if ids is not None and len(ids) > 0:
             ids = ids.reshape(-1)
+            seen_ids = set(int(x) for x in ids)
 
             # Рисуем рамки
             aruco.drawDetectedMarkers(frame, corners, ids)
 
-            # 4.1. Сглаживаем центры и (опционально) pose
+            # 4.1) Сглаживаем центры
             for i, marker_id in enumerate(ids):
+                marker_id = int(marker_id)
+                last_seen_frame[marker_id] = frame_idx
+
                 pts = corners[i][0]  # shape (4, 2)
                 center = pts.mean(axis=0)  # (x, y)
 
-                # Сглаживаем 2D-центр
                 smoothed = ema(smoothed_centers[marker_id], center, SMOOTHING_ALPHA)
                 smoothed_centers[marker_id] = smoothed
 
@@ -148,19 +181,25 @@ def main() -> None:
                     cv2.LINE_AA,
                 )
 
-            # 4.2. Оценка позы, если есть калибровка
+            # 4.2) Оценка позы, если есть калибровка
             if camera_matrix is not None and dist_coeffs is not None:
                 rvecs, tvecs, _obj_points = aruco.estimatePoseSingleMarkers(
                     corners, MARKER_LENGTH_METERS, camera_matrix, dist_coeffs
                 )
 
                 for marker_id, rvec, tvec in zip(ids, rvecs, tvecs):
+                    marker_id = int(marker_id)
+
                     tvec = tvec.reshape(-1)
                     smoothed_t = ema(smoothed_tvecs[marker_id], tvec, SMOOTHING_ALPHA)
                     smoothed_tvecs[marker_id] = smoothed_t
 
-                    # Рисуем 3D-ось по сглаженному положению
-                    aruco.drawAxis(
+                    # сохраняем последнюю позу
+                    last_rvecs[marker_id] = rvec
+                    last_tvecs[marker_id] = smoothed_t
+
+                    # Рисуем оси
+                    draw_axes(
                         frame,
                         camera_matrix,
                         dist_coeffs,
@@ -169,9 +208,59 @@ def main() -> None:
                         MARKER_LENGTH_METERS * 0.5,
                     )
 
-                    # Выведем в консоль расстояние до маркера
-                    dist_m = np.linalg.norm(smoothed_t)
+                    dist_m = float(np.linalg.norm(smoothed_t))
                     print(f"id={marker_id}: distance ≈ {dist_m:.3f} m", end="\r")
+
+        # 5) Дорисовываем "пропавшие, но ещё живые" (hold)
+        to_delete = []
+        for marker_id, last_f in list(last_seen_frame.items()):
+            age = frame_idx - last_f
+
+            if age > FORGET_FRAMES:
+                to_delete.append(marker_id)
+                continue
+
+            # если в этом кадре он виден — уже нарисовали
+            if marker_id in seen_ids:
+                continue
+
+            # если пропал недавно — рисуем последнюю позицию
+            if age <= HOLD_FRAMES:
+                c = smoothed_centers.get(marker_id)
+                if c is not None:
+                    cx, cy = int(c[0]), int(c[1])
+                    cv2.circle(frame, (cx, cy), 4, (0, 255, 255), -1)  # жёлтый = held
+                    cv2.putText(
+                        frame,
+                        f"id={marker_id} (held)",
+                        (cx + 5, cy - 5),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (0, 255, 255),
+                        1,
+                        cv2.LINE_AA,
+                    )
+
+                if camera_matrix is not None and dist_coeffs is not None:
+                    rvec = last_rvecs.get(marker_id)
+                    tvec = last_tvecs.get(marker_id)
+                    if rvec is not None and tvec is not None:
+                        draw_axes(
+                            frame,
+                            camera_matrix,
+                            dist_coeffs,
+                            rvec,
+                            tvec,
+                            MARKER_LENGTH_METERS * 0.5,
+                        )
+
+        # чистим старые маркеры
+        for marker_id in to_delete:
+            last_seen_frame.pop(marker_id, None)
+            smoothed_centers.pop(marker_id, None)
+            smoothed_tvecs.pop(marker_id, None)
+            last_rvecs.pop(marker_id, None)
+            last_tvecs.pop(marker_id, None)
 
         cv2.imshow("ArUco demo", frame)
         key = cv2.waitKey(1) & 0xFF
