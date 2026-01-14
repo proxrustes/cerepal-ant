@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 ARUCO_DICT_NAME = "DICT_4X4_1000"
-marker_id = 23
+marker_id = 5
 side_px = 600  # размер маркера в пикселях
 border_bits = 1
 
