@@ -18,14 +18,15 @@ from typing import Dict, Optional, Tuple
 import cv2
 import numpy as np
 
-
+import time 
+import json
 # ====== НАСТРОЙКИ ПОД СЕБЯ ======
 
 ARUCO_DICT_NAME = "DICT_4X4_1000"
 CAMERA_ID = 0
 
 # Физический размер маркера в метрах (для pose)
-MARKER_LENGTH_METERS = 0.085
+MARKER_LENGTH_METERS = 0.03797
 
 CAMERA_MATRIX_PATH = Path("camera_matrix.npy")
 DIST_COEFFS_PATH = Path("dist_coeffs.npy")
@@ -197,7 +198,7 @@ def main() -> None:
                     # сохраняем последнюю позу
                     last_rvecs[marker_id] = rvec
                     last_tvecs[marker_id] = smoothed_t
-
+                 
                     # Рисуем оси
                     draw_axes(
                         frame,
@@ -273,3 +274,15 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+def rt_to_T(rvec, tvec):
+    R, _ = cv2.Rodrigues(np.asarray(rvec).reshape(3, 1))
+    t = np.asarray(tvec).reshape(3, 1)
+    T = np.eye(4, dtype=np.float64)
+    T[:3, :3] = R
+    T[:3, 3:4] = t
+    return T  # T_C<-T
+
