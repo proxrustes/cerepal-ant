@@ -21,11 +21,14 @@ import numpy as np
 import time
 import json
 from datetime import datetime
+from typing import List
 
+from lib.motion_estimator import MotionEstimator
+from lib.track_sample import MIN_RECORD_DT, TRACK_KEY_CLEAR, TRACK_KEY_TOGGLE, TRACK_KEY_WRITE, TrackSample
 from lib.cube_params import tag_pose_on_face
 from lib.draw_helpers import draw_text_panel
 from lib.opecv_helpers import create_aruco_detector, draw_axes, draw_cube_axes_on_image, ema, load_camera_params, marker_area, project_point
-from lib.transform_helpers import MotionEstimator, ema_vec, invert_T, motion_label, rot_to_ypr_deg, rotmat_to_quat_wxyz, rt_to_T
+from lib.transform_helpers import ema_vec, invert_T, motion_label, rot_to_ypr_deg, rotmat_to_quat_wxyz, rt_to_T
 
 
 # ====== НАСТРОЙКИ ======
@@ -150,6 +153,10 @@ def main() -> None:
         stable_frames=4,
         max_jump_m=0.10,
     )
+    recording = False
+    track: list[TrackSample] = []
+    last_record_ts_ns: Optional[int] = None
+    session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     while True:
         ret, frame = cap.read()
@@ -298,6 +305,21 @@ def main() -> None:
                 "quat_wxyz": {"w": float(q[0]), "x": float(q[1]), "y": float(q[2]), "z": float(q[3])}
             }
             print(json.dumps(msg), flush=True)
+            # ====== RECORD TRACK ======
+            if recording:
+                ts_ns = msg["ts_ns"]
+                if last_record_ts_ns is None or (ts_ns - last_record_ts_ns) >= int(MIN_RECORD_DT * 1e9):
+                    track.append(
+                        TrackSample(
+                            ts_ns=ts_ns,
+                            x=float(pos[0]), y=float(pos[1]), z=float(pos[2]),
+                            qw=float(q[0]), qx=float(q[1]), qy=float(q[2]), qz=float(q[3]),
+                            tag_used=int(chosen_id),
+                            held=bool(chosen_held),
+                        )
+                    )
+                    last_record_ts_ns = ts_ns
+
 
         # ====== LIVE OVERLAY ======
         if len(frame_metrics) > 0:
@@ -334,7 +356,8 @@ def main() -> None:
             lines.append(f"Visible tags: {visible_list}")
             lines.append(f"Best tag (for cube pose): {best_id}")
             lines.append(f"cam->CUBE_CENTER = {dist_cam_cube:.3f} m")
-            
+            lines.append(f"REC: {'ON' if recording else 'OFF'}   samples={len(track)}   (r toggle, w save, c clear)")
+
             R = chosen_T[:3, :3]
             q = rotmat_to_quat_wxyz(R)  # (w,x,y,z)
             lines.append(f"QUAT (wxyz) = {q[0]:+.4f}  {q[1]:+.4f}  {q[2]:+.4f}  {q[3]:+.4f}")
@@ -375,6 +398,26 @@ def main() -> None:
 
         if key == ord("q"):
             break
+        if key == TRACK_KEY_TOGGLE:
+            recording = not recording
+            if recording:
+                print("RECORDING: START", flush=True)
+            else:
+                print(f"RECORDING: STOP (samples={len(track)})", flush=True)
+
+        if key == TRACK_KEY_CLEAR:
+            track.clear()
+            last_record_ts_ns = None
+            print("RECORDING: CLEARED", flush=True)
+
+        if key == TRACK_KEY_WRITE:
+            out_csv = f"cube_track_{session_id}.csv"
+            with open(out_csv, "w", newline="") as f:
+                w = csv.writer(f)
+                w.writerow(["ts_ns","x","y","z","qw","qx","qy","qz","tag_used","held"])
+                for s in track:
+                    w.writerow([s.ts_ns, s.x, s.y, s.z, s.qw, s.qx, s.qy, s.qz, s.tag_used, int(s.held)])
+            print(f"RECORDING: SAVED {out_csv} (samples={len(track)})", flush=True)
 
         # ====== SNAPSHOT по клавише 'p' ======
         if key == ord("p"):
