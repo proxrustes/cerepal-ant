@@ -25,7 +25,7 @@ from datetime import datetime
 from lib.cube_params import tag_pose_on_face
 from lib.draw_helpers import draw_text_panel
 from lib.opecv_helpers import create_aruco_detector, draw_axes, draw_cube_axes_on_image, ema, load_camera_params, marker_area, project_point
-from lib.transform_helpers import MotionEstimator, ema_vec, invert_T, motion_label, rot_to_ypr_deg, rt_to_T
+from lib.transform_helpers import MotionEstimator, ema_vec, invert_T, motion_label, rot_to_ypr_deg, rotmat_to_quat_wxyz, rt_to_T
 
 
 # ====== НАСТРОЙКИ ======
@@ -138,7 +138,7 @@ def main() -> None:
     last_TK_from_C: Dict[int, Optional[np.ndarray]] = collections.defaultdict(lambda: None)
 
     aruco = cv2.aruco
-    
+
     frame_idx = 0
     motion = MotionEstimator(
         pos_alpha=0.25,
@@ -213,6 +213,9 @@ def main() -> None:
                         T_C_from_K = T_C_from_T @ invert_T(T_K_from_T)  # cube -> camera
                         T_K_from_C = invert_T(T_C_from_K)               # camera -> cube
 
+                        R_CK = T_C_from_K[:3, :3]
+                        q_CK = rotmat_to_quat_wxyz(R_CK)
+                        
                         last_TK_from_C[marker_id] = T_K_from_C
 
                         # Метрики (в координатах камеры)
@@ -285,13 +288,14 @@ def main() -> None:
             pos = chosen_T[:3, 3]
             R = chosen_T[:3, :3]
             yaw, pitch, roll = rot_to_ypr_deg(R)
-
+            q = rotmat_to_quat_wxyz(R)  
             msg = {
                 "ts_ns": time.time_ns(),
                 "tag_used": int(chosen_id),
                 "held": bool(chosen_held),
                 "pos_m": {"x": float(pos[0]), "y": float(pos[1]), "z": float(pos[2])},
                 "ypr_deg": {"yaw": float(yaw), "pitch": float(pitch), "roll": float(roll)},
+                "quat_wxyz": {"w": float(q[0]), "x": float(q[1]), "y": float(q[2]), "z": float(q[3])}
             }
             print(json.dumps(msg), flush=True)
 
@@ -309,6 +313,7 @@ def main() -> None:
                 pos = chosen_T[:3, 3]
                 lines.append(f"K<-C  x={pos[0]:+0.3f}  y={pos[1]:+0.3f}  z={pos[2]:+0.3f}   tag={best_id}")
 
+                pos_s, vel_s, label, speed = motion.update(pos, ts=time.time())
                 # motion
                 now_ts = time.time()
                 cur_pos = pos.astype(np.float64)
@@ -325,9 +330,14 @@ def main() -> None:
                     label, speed = motion_label(vel_ema, VEL_DEADZONE)
                     lines.append(f"motion: {label}   v={speed:.3f} m/s")
 
+            lines.append(f"motion: {label}   v={speed:.3f} m/s  vel=({vel_s[0]:+.3f},{vel_s[1]:+.3f},{vel_s[2]:+.3f})")
             lines.append(f"Visible tags: {visible_list}")
             lines.append(f"Best tag (for cube pose): {best_id}")
             lines.append(f"cam->CUBE_CENTER = {dist_cam_cube:.3f} m")
+            
+            R = chosen_T[:3, :3]
+            q = rotmat_to_quat_wxyz(R)  # (w,x,y,z)
+            lines.append(f"QUAT (wxyz) = {q[0]:+.4f}  {q[1]:+.4f}  {q[2]:+.4f}  {q[3]:+.4f}")
 
             for mid in visible_list:
                 m = frame_metrics[mid]

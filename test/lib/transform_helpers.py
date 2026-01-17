@@ -225,7 +225,11 @@ class MotionEstimator:
             v_est = slope
 
         # --- smooth velocity ---
-        self.vel_ema = ema_vec(self.vel_ema, v_est, self.vel_alpha) if len(self.buf) >= self.min_points else (self.vel_ema or v_est)
+        if len(self.buf) >= self.min_points:
+            self.vel_ema = ema_vec(self.vel_ema, v_est, self.vel_alpha)
+        else:
+            self.vel_ema = v_est if self.vel_ema is None else self.vel_ema
+
 
         # --- label with dominance + hysteresis ---
         label_now, speed = motion_label_stable(self.vel_ema, self.deadzone, dominance=self.dominance)
@@ -245,3 +249,48 @@ class MotionEstimator:
                     self.pending_count = 0
 
         return self.pos_ema, self.vel_ema, self.last_label, float(speed)
+    
+
+
+def rotmat_to_quat_wxyz(R: np.ndarray) -> np.ndarray:
+    """
+    Convert 3x3 rotation matrix to quaternion (w,x,y,z).
+    Assumes R is a proper rotation matrix.
+    """
+    R = np.asarray(R, dtype=np.float64)
+    t = np.trace(R)
+
+    if t > 0.0:
+        S = np.sqrt(t + 1.0) * 2.0
+        w = 0.25 * S
+        x = (R[2, 1] - R[1, 2]) / S
+        y = (R[0, 2] - R[2, 0]) / S
+        z = (R[1, 0] - R[0, 1]) / S
+    else:
+        # pick the largest diagonal element
+        if (R[0, 0] > R[1, 1]) and (R[0, 0] > R[2, 2]):
+            S = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2.0
+            w = (R[2, 1] - R[1, 2]) / S
+            x = 0.25 * S
+            y = (R[0, 1] + R[1, 0]) / S
+            z = (R[0, 2] + R[2, 0]) / S
+        elif R[1, 1] > R[2, 2]:
+            S = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2.0
+            w = (R[0, 2] - R[2, 0]) / S
+            x = (R[0, 1] + R[1, 0]) / S
+            y = 0.25 * S
+            z = (R[1, 2] + R[2, 1]) / S
+        else:
+            S = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2.0
+            w = (R[1, 0] - R[0, 1]) / S
+            x = (R[0, 2] + R[2, 0]) / S
+            y = (R[1, 2] + R[2, 1]) / S
+            z = 0.25 * S
+
+    q = np.array([w, x, y, z], dtype=np.float64)
+    # normalize (important for numeric stability)
+    q /= np.linalg.norm(q)
+    # optional: enforce w>=0 to avoid sign flips between frames
+    if q[0] < 0:
+        q = -q
+    return q
