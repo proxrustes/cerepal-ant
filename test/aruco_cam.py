@@ -25,7 +25,7 @@ from datetime import datetime
 from lib.cube_params import tag_pose_on_face
 from lib.draw_helpers import draw_text_panel
 from lib.opecv_helpers import create_aruco_detector, draw_axes, draw_cube_axes_on_image, ema, load_camera_params, marker_area, project_point
-from lib.transform_helpers import ema_vec, invert_T, motion_label, rot_to_ypr_deg, rt_to_T
+from lib.transform_helpers import MotionEstimator, ema_vec, invert_T, motion_label, rot_to_ypr_deg, rt_to_T
 
 
 # ====== НАСТРОЙКИ ======
@@ -138,7 +138,18 @@ def main() -> None:
     last_TK_from_C: Dict[int, Optional[np.ndarray]] = collections.defaultdict(lambda: None)
 
     aruco = cv2.aruco
+    
     frame_idx = 0
+    motion = MotionEstimator(
+        pos_alpha=0.25,
+        vel_alpha=0.35,
+        deadzone=VEL_DEADZONE,
+        window_sec=0.35,
+        min_points=5,
+        dominance=0.60,
+        stable_frames=4,
+        max_jump_m=0.10,
+    )
 
     while True:
         ret, frame = cap.read()
