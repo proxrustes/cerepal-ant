@@ -51,7 +51,7 @@ def main():
     detector = aruco.ArucoDetector(dictionary, detector_params)
 
     print("Калибровка камеры.")
-    print("Требование: в кадре должно быть минимум 5 маркеров.")
+    print("Требование: в кадре должно быть минимум 1 маркеро.")
 
     while True:
         ret, frame = cap.read()

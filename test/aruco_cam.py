@@ -11,8 +11,10 @@ ArUco demo + EMA + hold + pose robot-in-cube + JSONL stream + SNAPSHOT.
 """
 
 from __future__ import annotations
+from pathlib import Path
 
 import collections
+import csv
 from typing import Dict, Optional
 
 import cv2
@@ -99,6 +101,13 @@ TAG_IN_CUBE: Dict[int, np.ndarray] = {
     for tid in FACE_NORMAL.keys()
 }
 
+CENTER_BIAS_K_BY_TAG = {
+    1: np.array([0.0, 0.0, 0.0], dtype=np.float64),
+    2: np.array([0.0, 0.0, 0.0], dtype=np.float64),
+    3: np.array([0.0, 0.0, 0.0], dtype=np.float64),
+    4: np.array([0.0, 0.0, 0.0], dtype=np.float64),
+    5: np.array([0.0, 0.0, 0.0], dtype=np.float64),
+}
 
 # ====== MAIN ======
 
@@ -226,8 +235,14 @@ def main() -> None:
                         last_TK_from_C[marker_id] = T_K_from_C
 
                         # Метрики (в координатах камеры)
-                        pC_cube_center = T_C_from_K[:3, 3]  # куб-центр в камере
+
+                        R_CK = T_C_from_K[:3, :3]
+                        t_CK = T_C_from_K[:3, 3]
+
+                        biasK = CENTER_BIAS_K_BY_TAG.get(marker_id, np.zeros(3, dtype=np.float64))
+                        pC_cube_center = t_CK + (R_CK @ biasK)
                         dist_cam_cube = float(np.linalg.norm(pC_cube_center))
+                        
 
                         dist_cam_tag = float(np.linalg.norm(smoothed_t))
 
@@ -411,13 +426,27 @@ def main() -> None:
             print("RECORDING: CLEARED", flush=True)
 
         if key == TRACK_KEY_WRITE:
-            out_csv = f"cube_track_{session_id}.csv"
-            with open(out_csv, "w", newline="") as f:
-                w = csv.writer(f)
-                w.writerow(["ts_ns","x","y","z","qw","qx","qy","qz","tag_used","held"])
-                for s in track:
-                    w.writerow([s.ts_ns, s.x, s.y, s.z, s.qw, s.qx, s.qy, s.qz, s.tag_used, int(s.held)])
-            print(f"RECORDING: SAVED {out_csv} (samples={len(track)})", flush=True)
+            out_dir = Path("tracking")
+            out_dir.mkdir(parents=True, exist_ok=True)
+
+            ts_path = out_dir / f"cube_track_{session_id}.csv"
+            latest_path = out_dir / "latest.csv"
+
+            header = ["ts_ns","x","y","z","qw","qx","qy","qz","tag_used","held"]
+
+            def write_csv(path: Path) -> None:
+                with path.open("w", newline="") as f:
+                    w = csv.writer(f)
+                    w.writerow(header)
+                    for s in track:
+                        w.writerow([s.ts_ns, s.x, s.y, s.z, s.qw, s.qx, s.qy, s.qz, s.tag_used, int(s.held)])
+
+            write_csv(ts_path)
+            write_csv(latest_path)
+
+            print(f"RECORDING: SAVED {ts_path} (samples={len(track)})", flush=True)
+            print(f"RECORDING: SAVED {latest_path} (samples={len(track)})", flush=True)
+
 
         # ====== SNAPSHOT по клавише 'p' ======
         if key == ord("p"):
@@ -488,10 +517,13 @@ def main() -> None:
 
             # --- 7) сохранить ---
             ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            out_name = f"cube_snapshot_{ts}.png"
-            cv2.imwrite(out_name, snap)
-            print("saved:", out_name)
-            break
+
+            out_dir = Path("snapshots")
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / f"cube_snapshot_{ts}.png"
+
+            ok = cv2.imwrite(str(out_path), snap)
+            print("saved:", out_path, "ok:", ok)
 
     cap.release()
     cv2.destroyAllWindows()

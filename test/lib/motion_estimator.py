@@ -5,19 +5,19 @@ from typing import Deque, Optional, Tuple
 
 import numpy as np
 
-from transform_helpers import ema_vec
+from lib.transform_helpers import ema_vec
 
 
 @dataclass
 class MotionEstimator:
     # --- filtering ---
-    pos_alpha: float = 0.25      # EMA по позиции (0..1). меньше = плавнее
-    vel_alpha: float = 0.35      # EMA по скорости (0..1)
-    deadzone: float = 0.02       # м/с
+    pos_alpha: float = 0.12      # EMA по позиции (0..1). меньше = плавнее
+    vel_alpha: float = 0.15      # EMA по скорости (0..1)
+    deadzone: float = 0.03       # м/с
 
     # --- velocity from window ---
-    window_sec: float = 0.35     # сколько секунд держим точек для оценки скорости
-    min_points: int = 5
+    window_sec: float = 0.70     # сколько секунд держим точек для оценки скорости
+    min_points: int = 10
 
     # --- label stability ---
     dominance: float = 0.60
